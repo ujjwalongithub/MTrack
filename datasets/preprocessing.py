@@ -11,10 +11,12 @@ def flip_boxes_horizontally(boxes):
      Returns:
        Flipped boxes.
      """
-    ymin, xmin, ymax, xmax = tf.split(value=boxes, num_or_size_splits=4, axis=-1)
+    ymin, xmin, ymax, xmax = tf.split(
+        value=boxes, num_or_size_splits=4, axis=-1)
     flipped_xmin = tf.subtract(1.0, xmax)
     flipped_xmax = tf.subtract(1.0, xmin)
-    flipped_boxes = tf.concat([ymin, flipped_xmin, ymax, flipped_xmax], axis=-1)
+    flipped_boxes = tf.concat(
+        [ymin, flipped_xmin, ymax, flipped_xmax], axis=-1)
     return flipped_boxes
 
 
@@ -29,7 +31,8 @@ def flip_image_horizontal_with_boxes(image: tf.Tensor,
 def random_horizontal_flip(image: tf.Tensor,
                            boxes: tf.Tensor
                            ):
-    flip_probability = tf.random.uniform(shape=(), minval=0.0, maxval=1.0, dtype=tf.float32)
+    flip_probability = tf.random.uniform(
+        shape=(), minval=0.0, maxval=1.0, dtype=tf.float32)
 
     image, boxes = tf.cond(
         tf.greater(flip_probability,
