@@ -7,7 +7,7 @@ def prepare_mot17_trackeval(mot17_folder):
         raise NotADirectoryError('The folder {} was not found.'.format(
             mot17_folder))
 
-    train_seqs = get_train_seq(mot17_folder, root_only=True)
+    train_seqs = get_train_seq(mot17_folder, root_only=False)
 
     val_seqs = ['MOT17-01-SDP']
 
@@ -29,7 +29,7 @@ def prepare_mot17_trackeval(mot17_folder):
         mot17_folder, 'MOT17-test.txt'
     )
 
-    test_seq = get_test_seq(mot17_folder, root_only=True)
+    test_seq = get_test_seq(mot17_folder, root_only=False)
 
     with open(test_seq_filename, 'w') as fid:
         for seq in test_seq:
@@ -49,7 +49,20 @@ def get_train_seq(mot17_folder, root_only=False):
             )
         )
 
-    train_seqs = list(set(train_seqs).difference(set(('MOT17-01-SDP'))))
+    if root_only:
+        train_seqs = list(set(train_seqs).difference(set(('MOT17-01-SDP'))))
+    else:
+        train_seqs = list(
+            set(
+                train_seqs
+            ).difference(
+                set(
+                    (
+                        os.path.join(mot17_folder, 'train', 'MOT17-01-SDP')
+                    )
+                )
+            )
+        )
     return train_seqs
 
 
