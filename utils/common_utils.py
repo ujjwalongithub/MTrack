@@ -1,3 +1,4 @@
+import errno
 import glob
 import os
 
@@ -7,7 +8,66 @@ def prepare_mot17_trackeval(mot17_folder):
         raise NotADirectoryError('The folder {} was not found.'.format(
             mot17_folder))
 
-    train_seqs = get_train_seq(mot17_folder, root_only=False)
+    if os.path.isdir(
+        os.path.join(
+            mot17_folder,
+            'train'
+        )
+    ):
+        os.rename(
+            os.path.join(
+                mot17_folder,
+                'train'
+            ),
+            os.path.join(
+                mot17_folder,
+                'MOT17-train'
+            )
+        )
+
+    if os.path.isdir(
+        os.path.join(
+            mot17_folder,
+            'test'
+        )
+    ):
+        os.rename(
+            os.path.join(
+                mot17_folder,
+                'test'
+            ),
+            os.path.join(
+                mot17_folder,
+                'MOT17-test'
+            )
+        )
+
+    os.makedirs(
+        os.path.join(
+            mot17_folder,
+            'MOT17-val'
+        ),
+        exist_ok=True
+    )
+
+    try:
+        os.symlink(
+            os.path.join(
+                mot17_folder,
+                'MOT17-train',
+                'MOT17-01-SDP'
+            ),
+            os.path.join(
+                mot17_folder,
+                'MOT17-val',
+                'MOT17-01-SDP'
+            )
+        )
+    except OSError as e:
+        if e.errno == errno.EEXIST:
+            pass
+
+    train_seqs = get_train_seq(mot17_folder, root_only=True)
 
     val_seqs = ['MOT17-01-SDP']
 
@@ -29,7 +89,7 @@ def prepare_mot17_trackeval(mot17_folder):
         mot17_folder, 'MOT17-test.txt'
     )
 
-    test_seq = get_test_seq(mot17_folder, root_only=False)
+    test_seq = get_test_seq(mot17_folder, root_only=True)
 
     with open(test_seq_filename, 'w') as fid:
         for seq in test_seq:
@@ -39,7 +99,7 @@ def prepare_mot17_trackeval(mot17_folder):
 
 
 def get_train_seq(mot17_folder, root_only=False):
-    train_folder = os.path.join(mot17_folder, 'train')
+    train_folder = os.path.join(mot17_folder, 'MOT17-train')
     train_seqs = glob.glob(os.path.join(train_folder, '*SDP'))
     if root_only:
         train_seqs = list(
@@ -58,7 +118,8 @@ def get_train_seq(mot17_folder, root_only=False):
             ).difference(
                 set(
                     (
-                        os.path.join(mot17_folder, 'train', 'MOT17-01-SDP')
+                        os.path.join(mot17_folder, 'MOT17-train',
+                                     'MOT17-01-SDP')
                     )
                 )
             )
@@ -67,7 +128,7 @@ def get_train_seq(mot17_folder, root_only=False):
 
 
 def get_test_seq(mot17_folder, root_only=False):
-    test_folder = os.path.join(mot17_folder, 'test')
+    test_folder = os.path.join(mot17_folder, 'MOT17-test')
     test_seqs = glob.glob(os.path.join(test_folder, '*SDP'))
     if root_only:
         test_seqs = list(
