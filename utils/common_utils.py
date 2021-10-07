@@ -1,6 +1,7 @@
 import errno
 import glob
 import os
+import typing
 
 
 def prepare_mot17_trackeval(mot17_folder):
