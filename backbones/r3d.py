@@ -147,11 +147,14 @@ class ResNet(tf.keras.Model):
         self.layer4 = self._make_layer(block, block_inplanes[3], layers[3],
                                        shortcut_type, stride=2)
 
-        self.avgpool = keras_layers.AveragePooling3D(
-            pool_size=(1, 1, 1)
-        )
-        self.flatten = keras_layers.Flatten()
-        self.fc = keras_layers.Dense(units=n_classes)
+        self.fc = None
+        if n_classes is not None:
+            self.avgpool = keras_layers.AveragePooling3D(
+                pool_size=(1, 1, 1)
+            )
+            self.flatten = keras_layers.Flatten()
+            self.fc = keras_layers.Dense(units=n_classes)
+        self.output_layers = output_layers
 
         pass
 
