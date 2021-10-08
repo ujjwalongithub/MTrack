@@ -49,14 +49,14 @@ class BasicBlock(keras_layers.Layer):
         self.downsample = downsample
         self.stride = stride
 
-    def call(self, x):
+    def call(self, x, training=None):
 
         residual = x
         out = self.conv1(x)
-        out = self.bn1(out)
+        out = self.bn1(out, training=training)
         out = self.relu(out)
         out = self.conv2(out)
-        out = self.bn2(out)
+        out = self.bn2(out, training=training)
         if self.downsample is not None:
             residual = self.downsample(x)
 
@@ -85,18 +85,18 @@ class Bottleneck(keras_layers.Layer):
         self.downsample = downsample
         self.stride = stride
 
-    def call(self, x):
+    def call(self, x, training=None):
         residual = x
         out = self.conv1(x)
-        out = self.bn1(out)
+        out = self.bn1(out, training=training)
         out = self.relu(out)
 
         out = self.conv2(out)
-        out = self.bn2(out)
+        out = self.bn2(out, training=training)
         out = self.relu(out)
 
         out = self.conv3(out)
-        out = self.bn3(out)
+        out = self.bn3(out, training=training)
 
         if self.downsample is not None:
             residual = self.downsample(x)
@@ -218,17 +218,17 @@ class ResNet(tf.keras.Model):
             )
         return tf.keras.Sequential(layers)
 
-    def call(self, x):
+    def call(self, x, training=None):
         if self.output_layers is None:
             x = self.conv1(x)
-            x = self.bn1(x)
+            x = self.bn1(x, training=training)
             x = self.relu(x)
             if not self.no_max_pool:
                 x = self.maxpool(x)
-            x = self.layer1(x)
-            x = self.layer2(x)
-            x = self.layer3(x)
-            x = self.layer4(x)
+            x = self.layer1(x, training=training)
+            x = self.layer2(x, training=training)
+            x = self.layer3(x, training=training)
+            x = self.layer4(x, training=training)
 
             if self.fc is not None:
                 x = self.avgpool(x)
