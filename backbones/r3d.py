@@ -117,6 +117,7 @@ class ResNet(tf.keras.Model):
                  no_max_pool=False,
                  shortcut_type='B',
                  widen_factor=1.0,
+                 output_layers=None,
                  n_classes=400
                  ):
         super(ResNet, self).__init__()
@@ -218,20 +219,66 @@ class ResNet(tf.keras.Model):
         return tf.keras.Sequential(layers)
 
     def call(self, x):
-        x = self.conv1(x)
-        x = self.bn1(x)
-        x = self.relu(x)
-        if not self.no_max_pool:
-            x = self.maxpool(x)
-        x = self.layer1(x)
-        x = self.layer2(x)
-        x = self.layer3(x)
-        x = self.layer4(x)
+        if self.output_layers is None:
+            x = self.conv1(x)
+            x = self.bn1(x)
+            x = self.relu(x)
+            if not self.no_max_pool:
+                x = self.maxpool(x)
+            x = self.layer1(x)
+            x = self.layer2(x)
+            x = self.layer3(x)
+            x = self.layer4(x)
 
-        x = self.avgpool(x)
-        x = self.flatten(x)
-        x = self.fc(x)
-        return x
+            if self.fc is not None:
+                x = self.avgpool(x)
+                x = self.flatten(x)
+                x = self.fc(x)
+            return x
+        elif self.output_layers == 'blocks':
+            output_dict = dict()
+            x = self.conv1(x)
+            x = self.bn1(x)
+            x = self.relu(x)
+            if not self.no_max_pool:
+                x = self.maxpool(x)
+            x = self.layer1(x)
+            output_dict['block1'] = x
+            x = self.layer2(x)
+            output_dict['block2'] = x
+            x = self.layer3(x)
+            output_dict['block3'] = x
+            x = self.layer4(x)
+            output_dict['block4'] = x
+            if self.fc is not None:
+                x = self.avgpool(x)
+                x = self.flatten(x)
+                x = self.fc(x)
+                output_dict['logits'] = x
+            return output_dict
+        else:
+            output_dict = dict()
+            x = self.conv1(x)
+            x = self.bn1(x)
+            x = self.relu(x)
+            output_dict['init_prepool'] = x
+            if not self.no_max_pool:
+                x = self.maxpool(x)
+                output_dict['init_postpool'] = x
+            x = self.layer1(x)
+            output_dict['block1'] = x
+            x = self.layer2(x)
+            output_dict['block2'] = x
+            x = self.layer3(x)
+            output_dict['block3'] = x
+            x = self.layer4(x)
+            output_dict['block4'] = x
+            if self.fc is not None:
+                x = self.avgpool(x)
+                x = self.flatten(x)
+                x = self.fc(x)
+                output_dict['logits'] = x
+            return output_dict
 
 
 def generate_model(model_depth, **kwargs):
