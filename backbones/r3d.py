@@ -14,6 +14,7 @@ def conv3x3x3(
     return keras_layers.Conv3D(
         filters=num_filters,
         kernel_size=3,
+        padding='same',
         strides=stride,
         use_bias=False
     )
@@ -26,12 +27,13 @@ def conv1x1x1(
     return keras_layers.Conv3D(
         filters=num_filters,
         kernel_size=1,
+        padding='valid',
         strides=stride,
         use_bias=False
     )
 
 
-class BasicBlock(tf.keras.keras_layers.Layer):
+class BasicBlock(keras_layers.Layer):
     expansion = 1
 
     def __init__(self, num_filters, stride=1, downsample=None):
@@ -48,13 +50,13 @@ class BasicBlock(tf.keras.keras_layers.Layer):
         self.stride = stride
 
     def call(self, x):
+
         residual = x
         out = self.conv1(x)
         out = self.bn1(out)
         out = self.relu(out)
         out = self.conv2(out)
         out = self.bn2(out)
-
         if self.downsample is not None:
             residual = self.downsample(x)
 
@@ -64,7 +66,7 @@ class BasicBlock(tf.keras.keras_layers.Layer):
         return out
 
 
-class Bottleneck(tf.keras.keras_layers.Layer):
+class Bottleneck(keras_layers.Layer):
     expansion = 4
 
     def __init__(self,
@@ -110,7 +112,6 @@ class ResNet(tf.keras.Model):
                  block,
                  layers,
                  block_inplanes,
-                 n_input_channels=3,
                  conv1_t_size=7,
                  conv1_t_stride=1,
                  no_max_pool=False,
@@ -123,17 +124,17 @@ class ResNet(tf.keras.Model):
 
         self.in_planes = block_inplanes[0]
         self.no_max_pool = no_max_pool
-        self.conv1 = layers.Conv3D(
+        self.conv1 = keras_layers.Conv3D(
             filters=self.in_planes,
             kernel_size=(conv1_t_size, 7, 7),
             strides=(conv1_t_stride, 2, 2),
             padding='same',
             use_bias=False
         )
-        self.bn1 = layers.BatchNormalization(axis=1, fused=True)
-        self.relu = layers.ReLU()
-        self.maxpool = layers.MaxPool3D(
-            kernel_size=3,
+        self.bn1 = keras_layers.BatchNormalization(axis=1, fused=True)
+        self.relu = keras_layers.ReLU()
+        self.maxpool = keras_layers.MaxPool3D(
+            pool_size=3,
             strides=2,
             padding='same'
         )
@@ -141,15 +142,15 @@ class ResNet(tf.keras.Model):
                                        shortcut_type)
         self.layer2 = self._make_layer(block, block_inplanes[1], layers[1],
                                        shortcut_type, stride=2)
-        self.layer1 = self._make_layer(block, block_inplanes[2], layers[2],
+        self.layer3 = self._make_layer(block, block_inplanes[2], layers[2],
                                        shortcut_type, stride=2)
-        self.layer1 = self._make_layer(block, block_inplanes[3], layers[3],
+        self.layer4 = self._make_layer(block, block_inplanes[3], layers[3],
                                        shortcut_type, stride=2)
 
         self.avgpool = keras_layers.AveragePooling3D(
             pool_size=(1, 1, 1)
         )
-        self.flatten = keras_layers.Flatten(),
+        self.flatten = keras_layers.Flatten()
         self.fc = keras_layers.Dense(units=n_classes)
 
         pass
@@ -159,7 +160,7 @@ class ResNet(tf.keras.Model):
             x,
             ksize=1,
             strides=stride,
-            padding='VALID',
+            padding='same',
             data_format='NCDHW'
         )
 
@@ -181,17 +182,17 @@ class ResNet(tf.keras.Model):
 
     def _make_layer(self, block, num_filters, blocks, shortcut_type, stride=1):
         downsample = None
-        if stride != 1 or self.in_planes != num_filters * 4:
+        if stride != 1 or self.in_planes != num_filters * block.expansion:
             if shortcut_type == 'A':
                 downsample = partial(
                     self._downsample_basic_block,
-                    num_filters=num_filters * 4,
+                    num_filters=num_filters * block.expansion,
                     stride=stride
                 )
             else:
                 downsample = tf.keras.Sequential(
                     [
-                        conv1x1x1(num_filters * 4, stride),
+                        conv1x1x1(num_filters * block.expansion, stride),
                         keras_layers.BatchNormalization(axis=1, fused=True)
                     ]
                 )
@@ -211,8 +212,7 @@ class ResNet(tf.keras.Model):
                     num_filters=num_filters
                 )
             )
-
-        return tf.keras.Sequential(*layers)
+        return tf.keras.Sequential(layers)
 
     def call(self, x):
         x = self.conv1(x)
@@ -220,7 +220,6 @@ class ResNet(tf.keras.Model):
         x = self.relu(x)
         if not self.no_max_pool:
             x = self.maxpool(x)
-
         x = self.layer1(x)
         x = self.layer2(x)
         x = self.layer3(x)
@@ -230,3 +229,24 @@ class ResNet(tf.keras.Model):
         x = self.flatten(x)
         x = self.fc(x)
         return x
+
+
+def generate_model(model_depth, **kwargs):
+    assert model_depth in [10, 18, 34, 50, 101, 152, 200]
+
+    if model_depth == 10:
+        model = ResNet(BasicBlock, [1, 1, 1, 1], get_inplanes(), **kwargs)
+    elif model_depth == 18:
+        model = ResNet(BasicBlock, [2, 2, 2, 2], get_inplanes(), **kwargs)
+    elif model_depth == 34:
+        model = ResNet(BasicBlock, [3, 4, 6, 3], get_inplanes(), **kwargs)
+    elif model_depth == 50:
+        model = ResNet(Bottleneck, [3, 4, 6, 3], get_inplanes(), **kwargs)
+    elif model_depth == 101:
+        model = ResNet(Bottleneck, [3, 4, 23, 3], get_inplanes(), **kwargs)
+    elif model_depth == 152:
+        model = ResNet(Bottleneck, [3, 8, 36, 3], get_inplanes(), **kwargs)
+    elif model_depth == 200:
+        model = ResNet(Bottleneck, [3, 24, 36, 3], get_inplanes(), **kwargs)
+
+    return model
