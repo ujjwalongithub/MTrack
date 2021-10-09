@@ -7,17 +7,73 @@ def get_inplanes():
     return [64, 128, 256, 512]
 
 
-def conv3x3x3(
+def conv3d_with_pad(x,
+                    num_filters,
+                    kernel_size,
+                    stride,
+                    padding,
+                    use_bias
+                    ):
+    x = tf.pad(
+        x,
+        tf.constant(
+            [
+                [0,0],
+                [0,0],
+                [padding[0], padding[0]],
+                [padding[1], padding[1]],
+                [padding[1], padding[1]]
+            ]
+        )
+    )
+
+    return  keras_layers.Conv3D(
+        kernel_size=kernel_size,
+        filters=num_filters,
+        padding='valid',
+        strides=stride,
+        use_bias=use_bias
+    )(x)
+
+
+def maxpool_with_pad(x,
+                     pool_size,
+                     pool_stride,
+                     padding
+                     ):
+    x = tf.pad(
+        x,
+        [
+            [0,0],
+            [0,0],
+            [padding[0],padding[0]],
+            [padding[1],padding[1]],
+            [padding[2],padding[2]]
+        ]
+    )
+
+    return keras_layers.MaxPool3D(
+        pool_size=pool_size,
+        strides=pool_stride
+    )(x)
+
+
+def conv3x3x3(x,
         num_filters,
         stride=1
 ):
-    return keras_layers.Conv3D(
+    x = tf.pad(
+        x,
+        tf.constant([[0,0],[0,0],[1,1],[1,1],[1,1]])
+    )
+    return  keras_layers.Conv3D(
         filters=num_filters,
         kernel_size=3,
-        padding='same',
+        padding='valid',
         strides=stride,
         use_bias=False
-    )
+    )(x)
+
 
 
 def conv1x1x1(
@@ -38,14 +94,14 @@ class BasicBlock(keras_layers.Layer):
 
     def __init__(self, num_filters, stride=1, downsample=None):
         super(BasicBlock, self).__init__()
-        self.conv1 = conv3x3x3(num_filters, stride)
+        self.conv1 = partial(conv3x3x3, num_filters=num_filters, stride=stride)
         self.bn1 = keras_layers.BatchNormalization(
             axis=1,
-            fused=True
+            fused=None
         )
         self.relu = keras_layers.ReLU()
-        self.conv2 = conv3x3x3(num_filters)
-        self.bn2 = keras_layers.BatchNormalization(axis=1, fused=True)
+        self.conv2 = partial(conv3x3x3,num_filters=num_filters)
+        self.bn2 = keras_layers.BatchNormalization(axis=1, fused=None)
         self.downsample = downsample
         self.stride = stride
 
@@ -76,11 +132,11 @@ class Bottleneck(keras_layers.Layer):
                  ):
         super(Bottleneck, self).__init__()
         self.conv1 = conv1x1x1(num_filters)
-        self.bn1 = keras_layers.BatchNormalization(axis=1, fused=True)
-        self.conv2 = conv3x3x3(num_filters, stride)
-        self.bn2 = keras_layers.BatchNormalization(axis=1, fused=True)
+        self.bn1 = keras_layers.BatchNormalization(axis=1, fused=None)
+        self.conv2 = partial(conv3x3x3,num_filters=num_filters, stride=stride)
+        self.bn2 = keras_layers.BatchNormalization(axis=1, fused=None)
         self.conv3 = conv1x1x1(num_filters * self.expansion)
-        self.bn3 = keras_layers.BatchNormalization(axis=1, fused=True)
+        self.bn3 = keras_layers.BatchNormalization(axis=1, fused=None)
         self.relu = keras_layers.ReLU()
         self.downsample = downsample
         self.stride = stride
@@ -125,20 +181,25 @@ class ResNet(tf.keras.Model):
 
         self.in_planes = block_inplanes[0]
         self.no_max_pool = no_max_pool
-        self.conv1 = keras_layers.Conv3D(
-            filters=self.in_planes,
-            kernel_size=(conv1_t_size, 7, 7),
-            strides=(conv1_t_stride, 2, 2),
-            padding='same',
-            use_bias=False
+        self.conv1 = partial(
+            conv3d_with_pad,
+            num_filters=self.in_planes,
+            kernel_size=(conv1_t_size, 7,7),
+            stride=(conv1_t_stride, 2,2),
+            use_bias=False,
+            padding=(conv1_t_size//2,3,3)
         )
-        self.bn1 = keras_layers.BatchNormalization(axis=1, fused=True)
+
+
+        self.bn1 = keras_layers.BatchNormalization(axis=1, fused=None)
         self.relu = keras_layers.ReLU()
-        self.maxpool = keras_layers.MaxPool3D(
+        self.maxpool = partial(
+            maxpool_with_pad,
             pool_size=3,
-            strides=2,
-            padding='same'
+            pool_stride=2,
+            padding=(1,1,1)
         )
+        
         self.layer1 = self._make_layer(block, block_inplanes[0], layers[0],
                                        shortcut_type)
         self.layer2 = self._make_layer(block, block_inplanes[1], layers[1],
@@ -195,7 +256,7 @@ class ResNet(tf.keras.Model):
                 downsample = tf.keras.Sequential(
                     [
                         conv1x1x1(num_filters * block.expansion, stride),
-                        keras_layers.BatchNormalization(axis=1, fused=True)
+                        keras_layers.BatchNormalization(axis=1, fused=None)
                     ]
                 )
 
