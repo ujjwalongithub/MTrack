@@ -150,9 +150,7 @@ class ResNet(tf.keras.Model):
 
         self.fc = None
         if n_classes is not None:
-            self.avgpool = keras_layers.AveragePooling3D(
-                pool_size=(1, 1, 1)
-            )
+            self.avgpool = keras_layers.GlobalAveragePooling3D()
             self.flatten = keras_layers.Flatten()
             self.fc = keras_layers.Dense(units=n_classes)
         self.output_layers = output_layers
