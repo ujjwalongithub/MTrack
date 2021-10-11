@@ -78,7 +78,7 @@ class BasicBlock(keras_layers.Layer):
     def __init__(self, num_filters, stride=1, downsample=None):
         super(BasicBlock, self).__init__()
         self.conv1 = ConvPadLayer(num_filters=num_filters, stride=stride,
-                                  padding=(0, 0, 0), use_bias=False,
+                                  padding=(1, 1, 1), use_bias=False,
                                   kernel_size=3)
         self.bn1 = keras_layers.BatchNormalization(
             axis=1,
@@ -86,7 +86,7 @@ class BasicBlock(keras_layers.Layer):
         )
         self.relu = keras_layers.ReLU()
         self.conv2 = ConvPadLayer(num_filters=num_filters, stride=1,
-                                  padding=(0, 0, 0), use_bias=False,
+                                  padding=(1, 1, 1), use_bias=False,
                                   kernel_size=3)
         self.bn2 = keras_layers.BatchNormalization(axis=1, fused=None)
         self.downsample = downsample
