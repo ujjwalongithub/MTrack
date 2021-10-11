@@ -277,7 +277,6 @@ class ResNet(tf.keras.Model):
         if self.output_layers is None:
             x = self.conv1(x)
             x = self.bn1(x, training=training)
-            tf.print("x is ", x)
             x = self.relu(x)
             if not self.no_max_pool:
                 x = self.maxpool(x)
