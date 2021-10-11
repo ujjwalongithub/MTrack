@@ -73,6 +73,38 @@ def conv3d_with_pad(x,
     )(x)
 
 
+class MaxPoolPadLayer(tf.keras.layers.Layer):
+    def __init__(self,
+                 pool_size,
+                 pool_stride,
+                 padding
+                 ):
+        self.padding = padding
+        self.pool = keras_layers.MaxPool3D(
+            pool_size=pool_size,
+            strides=pool_stride
+        )
+
+    def call(self, x):
+        x = tf.pad(
+            x,
+            tf.constant(
+                [
+                    [0, 0],
+                    [0, 0],
+                    [self.padding[0], self.padding[0]],
+                    [self.padding[1], self.padding[1]],
+                    [self.padding[2], self.padding[2]]
+                ]
+            )
+        )
+
+        x = self.pool(x)
+        return x
+
+
+
+
 def maxpool_with_pad(x,
                      pool_size,
                      pool_stride,
