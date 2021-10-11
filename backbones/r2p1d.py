@@ -101,6 +101,8 @@ def conv1x1x1(out_planes, stride=1):
 
 
 class BasicBlock(keras_layers.Layer):
+    expansion = 1
+
     def __init__(self,
                  in_planes,
                  planes,
@@ -154,6 +156,8 @@ class BasicBlock(keras_layers.Layer):
 
 
 class Bottleneck(keras_layers.Layer):
+    expansion = 4
+
     def __init__(self,
                  in_planes,
                  planes,
@@ -267,6 +271,102 @@ class ResNet(tf.keras.Model):
                                        shortcut_type,
                                        stride=2)
 
+        self.flatter = keras_layers.Flatten()
         self.avgpool = keras_layers.GlobalAveragePooling3D()
         self.fc = keras_layers.Dense(n_classes, use_bias=True)
-        
+
+    def _downsample_basic_block(self, x, num_filters, stride):
+        out = tf.nn.avg_pool3d(
+            x,
+            ksize=1,
+            strides=stride,
+            padding='same',
+            data_format='NCDHW'
+        )
+
+        out_shape = tf.shape(out)
+
+        zero_pads = tf.zeros(shape=(out_shape[0], num_filters - out_shape[1],
+                                    out_shape[2],
+                                    out_shape[3],
+                                    out_shape[4]),
+                             name='zero_pad'
+                             )
+        out = tf.concat(
+            [
+                out, zero_pads
+            ],
+            axis=1
+        )
+        return out
+
+    def _make_layer(self, block, planes, blocks, shortcut_type, stride=1):
+        downsample = None
+        if stride != 1 or self.in_planes != planes * block.expansion:
+            if shortcut_type == 'A':
+                downsample = keras_layers.Lambda(
+                    lambda x: self._downsample_basic_block(x, planes * block.expansion, stride)
+                )
+            else:
+                downsample = tf.keras.Sequential(
+                    [
+                        conv1x1x1(planes * block.expansion, stride),
+                        keras_layers.BatchNormalization(axis=1)
+                    ]
+                )
+
+        layers = []
+        layers.append(
+            block(in_planes=self.in_planes,
+                  planes=planes,
+                  stride=stride,
+                  downsample=downsample))
+        self.in_planes = planes * block.expansion
+        for i in range(1, blocks):
+            layers.append(block(self.in_planes, planes))
+
+        return tf.keras.Sequential(layers)
+
+    def call(self, x):
+        x = self.conv1_s(x)
+        x = self.bn1_s(x)
+        x = self.relu(x)
+        x = self.conv1_t(x)
+        x = self.bn1_t(x)
+        x = self.relu(x)
+
+        if not self.no_max_pool:
+            x = self.maxpool(x)
+
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
+        x = self.layer4(x)
+
+        x = self.avgpool(x)
+
+        x = self.flatter(x)
+        x = self.fc(x)
+
+        return x
+
+
+def generate_model(model_depth, **kwargs):
+    assert model_depth in [10, 18, 34, 50, 101, 152, 200]
+
+    if model_depth == 10:
+        model = ResNet(BasicBlock, [1, 1, 1, 1], get_inplanes(), **kwargs)
+    elif model_depth == 18:
+        model = ResNet(BasicBlock, [2, 2, 2, 2], get_inplanes(), **kwargs)
+    elif model_depth == 34:
+        model = ResNet(BasicBlock, [3, 4, 6, 3], get_inplanes(), **kwargs)
+    elif model_depth == 50:
+        model = ResNet(Bottleneck, [3, 4, 6, 3], get_inplanes(), **kwargs)
+    elif model_depth == 101:
+        model = ResNet(Bottleneck, [3, 4, 23, 3], get_inplanes(), **kwargs)
+    elif model_depth == 152:
+        model = ResNet(Bottleneck, [3, 8, 36, 3], get_inplanes(), **kwargs)
+    elif model_depth == 200:
+        model = ResNet(Bottleneck, [3, 24, 36, 3], get_inplanes(), **kwargs)
+
+    return model
