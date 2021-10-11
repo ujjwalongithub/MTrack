@@ -1,5 +1,3 @@
-from functools import partial
-
 import tensorflow as tf
 import tensorflow.keras.layers as keras_layers
 
@@ -239,11 +237,12 @@ class ResNet(tf.keras.Model):
         downsample = None
         if stride != 1 or self.in_planes != num_filters * block.expansion:
             if shortcut_type == 'A':
-                downsample = partial(
-                    self._downsample_basic_block,
-                    num_filters=num_filters * block.expansion,
-                    stride=stride
+                downsample = keras_layers.Lambda(
+                    lambda x: self._downsample_basic_block(x,
+                                                           num_filters * block.expansion,
+                                                           stride)
                 )
+
             else:
                 downsample = tf.keras.Sequential(
                     [
