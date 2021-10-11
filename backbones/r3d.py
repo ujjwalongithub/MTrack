@@ -7,6 +7,43 @@ def get_inplanes():
     return [64, 128, 256, 512]
 
 
+
+
+class ConvPadLayer(tf.keras.layers.Layer):
+    def __init__(self, num_filters, kernel_size,
+                 stride,
+                 padding,
+                 use_bias):
+        super(ConvPadLayer, self).__init__()
+        self.padding = padding
+        self.conv = keras_layers.Conv3D(
+            filters=num_filters,
+            kernel_size=kernel_size,
+            strides=stride,
+            use_bias=use_bias
+        )
+
+    def call(self, x):
+        x = tf.pad(
+            x,
+            tf.constant(
+                [
+                    [0, 0],
+                    [0, 0],
+                    [self.padding[0], self.padding[0]],
+                    [self.padding[1], self.padding[1]],
+                    [self.padding[2], self.padding[2]]
+                ]
+            )
+        )
+
+        x = self.conv(x)
+
+        return x
+
+
+
+
 def conv3d_with_pad(x,
                     num_filters,
                     kernel_size,
