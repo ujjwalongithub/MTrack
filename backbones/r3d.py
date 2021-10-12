@@ -80,13 +80,15 @@ class BasicBlock(keras_layers.Layer):
                                   kernel_size=3)
         self.bn1 = keras_layers.BatchNormalization(
             axis=1,
+            momentum=0.9,
             fused=None
         )
         self.relu = keras_layers.ReLU()
         self.conv2 = ConvPadLayer(num_filters=num_filters, stride=1,
                                   padding=(1, 1, 1), use_bias=False,
                                   kernel_size=3)
-        self.bn2 = keras_layers.BatchNormalization(axis=1, fused=None)
+        self.bn2 = keras_layers.BatchNormalization(axis=1, momentum=0.9,
+        fused=None)
         self.downsample = downsample
         self.stride = stride
 
@@ -122,17 +124,20 @@ class Bottleneck(keras_layers.Layer):
             use_bias=False,
             stride=1
         )
-        self.bn1 = keras_layers.BatchNormalization(axis=1, fused=None)
+        self.bn1 = keras_layers.BatchNormalization(axis=1, momentum=0.9,
+        fused=None)
         self.conv2 = ConvPadLayer(num_filters=num_filters, kernel_size=3,
                                   stride=stride, use_bias=False,
                                   padding=(1, 1, 1))
-        self.bn2 = keras_layers.BatchNormalization(axis=1, fused=None)
+        self.bn2 = keras_layers.BatchNormalization(axis=1,
+                                                   momentum=0.9,fused=None)
         self.conv3 = ConvPadLayer(num_filters=num_filters * self.expansion,
                                   stride=1,
                                   kernel_size=1,
                                   use_bias=False,
                                   padding=(0, 0, 0))
-        self.bn3 = keras_layers.BatchNormalization(axis=1, fused=None)
+        self.bn3 = keras_layers.BatchNormalization(axis=1,
+                                                   momentum=0.9,fused=None)
         self.relu = keras_layers.ReLU()
         self.downsample = downsample
         self.stride = stride
@@ -184,7 +189,8 @@ class ResNet(tf.keras.Model):
             use_bias=False,
             padding=(conv1_t_size // 2, 3, 3)
         )
-        self.bn1 = keras_layers.BatchNormalization(axis=1, fused=None)
+        self.bn1 = keras_layers.BatchNormalization(axis=1, momentum=0.9,
+        fused=None)
         self.relu = keras_layers.ReLU()
         self.maxpool = MaxPoolPadLayer(pool_size=3,
                                        pool_stride=2,
@@ -252,7 +258,8 @@ class ResNet(tf.keras.Model):
                                      use_bias=False,
                                      kernel_size=1,
                                      padding=(0, 0, 0)),
-                        keras_layers.BatchNormalization(axis=1, fused=None)
+                        keras_layers.BatchNormalization(axis=1,
+                                                        momentum=0.9,fused=None)
                     ]
                 )
 
