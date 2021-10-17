@@ -81,14 +81,14 @@ class BasicBlock(keras_layers.Layer):
         self.bn1 = keras_layers.BatchNormalization(
             axis=1,
             momentum=0.9,
-            fused=None
+            fused=None, epsilon=1E-5
         )
         self.relu = keras_layers.ReLU()
         self.conv2 = ConvPadLayer(num_filters=num_filters, stride=1,
                                   padding=(1, 1, 1), use_bias=False,
                                   kernel_size=3)
         self.bn2 = keras_layers.BatchNormalization(axis=1, momentum=0.9,
-        fused=None)
+                                                   fused=None, epsilon=1E-5)
         self.downsample = downsample
         self.stride = stride
 
@@ -125,19 +125,21 @@ class Bottleneck(keras_layers.Layer):
             stride=1
         )
         self.bn1 = keras_layers.BatchNormalization(axis=1, momentum=0.9,
-        fused=None)
+                                                   fused=None, epsilon=1E-5)
         self.conv2 = ConvPadLayer(num_filters=num_filters, kernel_size=3,
                                   stride=stride, use_bias=False,
                                   padding=(1, 1, 1))
         self.bn2 = keras_layers.BatchNormalization(axis=1,
-                                                   momentum=0.9,fused=None)
+                                                   momentum=0.9, fused=None,
+                                                   epsilon=1E-5)
         self.conv3 = ConvPadLayer(num_filters=num_filters * self.expansion,
                                   stride=1,
                                   kernel_size=1,
                                   use_bias=False,
                                   padding=(0, 0, 0))
         self.bn3 = keras_layers.BatchNormalization(axis=1,
-                                                   momentum=0.9,fused=None)
+                                                   momentum=0.9, fused=None,
+                                                   epsilon=1E-5)
         self.relu = keras_layers.ReLU()
         self.downsample = downsample
         self.stride = stride
@@ -146,13 +148,17 @@ class Bottleneck(keras_layers.Layer):
         residual = x
         out = self.conv1(x)
         out = self.bn1(out, training=training)
+
         out = self.relu(out)
 
         out = self.conv2(out)
+
         out = self.bn2(out, training=training)
+
         out = self.relu(out)
 
         out = self.conv3(out)
+
         out = self.bn3(out, training=training)
 
         if self.downsample is not None:
@@ -165,6 +171,10 @@ class Bottleneck(keras_layers.Layer):
 
 
 class ResNet(tf.keras.Model):
+    """
+    A general tf.keras.Model instance which creates ResNet
+    """
+
     def __init__(self,
                  block,
                  layers,
@@ -190,7 +200,7 @@ class ResNet(tf.keras.Model):
             padding=(conv1_t_size // 2, 3, 3)
         )
         self.bn1 = keras_layers.BatchNormalization(axis=1, momentum=0.9,
-        fused=None)
+                                                   fused=None, epsilon=1E-5)
         self.relu = keras_layers.ReLU()
         self.maxpool = MaxPoolPadLayer(pool_size=3,
                                        pool_stride=2,
@@ -209,7 +219,7 @@ class ResNet(tf.keras.Model):
         if n_classes is not None:
             self.avgpool = keras_layers.GlobalAveragePooling3D()
             self.flatten = keras_layers.Flatten()
-            self.fc = keras_layers.Dense(units=n_classes)
+            self.fc = keras_layers.Dense(units=n_classes, dtype=tf.float32)
         self.output_layers = output_layers
 
         pass
@@ -259,7 +269,9 @@ class ResNet(tf.keras.Model):
                                      kernel_size=1,
                                      padding=(0, 0, 0)),
                         keras_layers.BatchNormalization(axis=1,
-                                                        momentum=0.9,fused=None)
+                                                        momentum=0.9,
+                                                        fused=None,
+                                                        epsilon=1E-5)
                     ]
                 )
 
@@ -283,10 +295,13 @@ class ResNet(tf.keras.Model):
     def call(self, x, training=None):
         if self.output_layers is None:
             x = self.conv1(x)
+
             x = self.bn1(x, training=training)
+
             x = self.relu(x)
             if not self.no_max_pool:
                 x = self.maxpool(x)
+
             x = self.layer1(x, training=training)
             x = self.layer2(x, training=training)
             x = self.layer3(x, training=training)
