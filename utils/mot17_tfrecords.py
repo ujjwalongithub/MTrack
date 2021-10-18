@@ -1,26 +1,32 @@
-import tensorflow as tf
-import os
-import glob
 import argparse
 import configparser
+import glob
+import os
 import typing
+
 import pandas as pd
+import tensorflow as tf
 from loguru import logger
 
 parser = argparse.ArgumentParser(prog='Code to create TFRecords for MOT17.')
 parser.add_argument('--mot_dir', help='Path storing MOT17 dataset.')
 parser.add_argument('--subset', choices=['train', 'val', 'test'], help='Subset '
-                    'of '
-                    'MOT17 '
-                    'dataset \
-                                                                     for which '
-                    'the '
-                    'TFRecords '
-                    'are '
-                    'created.')
+                                                                       'of '
+                                                                       'MOT17 '
+                                                                       'dataset \
+                                                                                                                        for which '
+                                                                       'the '
+                                                                       'TFRecords '
+                                                                       'are '
+                                                                       'created.')
+parser.add_argument('--num_frames', type=int, default=4, help='Number of '
+                                                              'frames in each batch.')
+
+parser.add_argument('--num_shards', type=int, default=64, help='Number of '
+                                                               'shards.')
 
 
-def get_data_folder(mot_folder: str,  subset: str) -> typing.List[str]:
+def get_data_folders(mot_folder: str, subset: str) -> typing.List[str]:
     root_data_folder = os.path.join(mot_folder, subset)
     return glob.glob(
         os.path.join(
@@ -123,3 +129,30 @@ def read_gt(seq_folder: str):
 
     df_grp = df.groupby(['frame_id'], sort=True)
     return df_grp
+
+
+def get_shard_filename(subset: str, shard_num: int, num_shards: int) -> str:
+    return 'MOT17-{}-{}-of-{}'.format(subset, str(shard_num).zfill(4),
+                                      str(num_shards).zfill(4))
+
+
+def read_data_folder(data_folder: str, num_frames: int):
+    seq_info = get_mot_seq_info(data_folder)
+    gt_grp = read_gt(data_folder)
+    images = get_images(data_folder)
+    image_chunks = chunk_images(images, num_frames)
+
+
+def main():
+    args = parser.parse_args()
+    mot_dir = args.mot_dir
+    subset = args.subset
+    num_frames = args.num_frames
+    num_shards = args.num_shards
+    tfrecord_names = [
+        get_shard_filename(subset, i, num_shards) for i in range(1,
+                                                                 num_shards + 1)
+    ]
+
+    data_folders = get_data_folders(mot_dir, subset)
+    pass
