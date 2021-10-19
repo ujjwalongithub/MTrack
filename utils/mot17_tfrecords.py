@@ -4,6 +4,7 @@ import glob
 import os
 import typing
 
+import numpy as np
 import pandas as pd
 import tensorflow as tf
 from loguru import logger
@@ -82,6 +83,65 @@ def get_images(seq_folder: str) -> typing.List[str]:
     )
 
     return images
+
+
+def frame_number_from_filename(filename):
+    return int(os.path.splitext(os.path.basename(filename))[0])
+
+
+def get_gt_for_batch(image_list: typing.List[str], gt_grp):
+    boxes = list()
+    ids = list()
+    for imgname in image_list:
+        framenum = frame_number_from_filename(imgname)
+        gt_df = gt_grp.get_group(framenum)
+        bboxes = np.array(
+            [
+                gt_df['ymin'],
+                gt_df['xmin'],
+                gt_df['height'],
+                gt_df['width']
+            ]
+        ).transpose()
+        bboxes[:, 2] += (bboxes[:, 0] - 1)
+        bboxes[:, 3] += (bboxes[:, 1] - 1)
+        boxes.append(bboxes)
+        tracking_ids = np.array(gt_df['tracking_id'])
+        ids.append(tracking_ids)
+
+    max_num = max(
+        [
+            x.shape[0] for x in boxes
+        ]
+    )
+
+    to_pad = [
+        max_num - x.shape[0] for x in boxes
+    ]
+
+    for i in range(len(to_pad)):
+        if to_pad[i] == 0:
+            continue
+        boxes[i] = np.concatenate(
+            [
+                boxes[i],
+                np.zeros((to_pad[i], 4))
+            ],
+            axis=0
+        )
+        ids[i] = np.concatenate(
+            [
+                ids[i],
+                np.ones((to_pad[i],)) * -1
+            ]
+        )
+
+    boxes = np.stack(
+        boxes
+    )
+
+    ids = np.stack(ids)
+    return boxes, ids
 
 
 def chunk_images(image_list: typing.List[str], num_frames: int) -> \
