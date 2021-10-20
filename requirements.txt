@@ -1,3 +1,4 @@
 tensorflow==2.6.0
 tensorflow-io==0.21.0
 configparser==5.0.2
+more-itertools==8.10.0
